@@ -1,0 +1,27 @@
+## Parte 2: El Plano – Arquitectura para la Victoria
+
+Con la configuración inicial completa, es hora de entender el plano de nuestra aplicación. La estructura del proyecto y los diagramas de arquitectura pueden parecer abstractos e intimidantes. Nuestro objetivo aquí es desmitificarlos centrándonos en el *porqué*: por qué esta estructura te hará la vida más fácil y tu código inmensamente mejor.
+
+---
+
+### 2.1 El Mapa del Juego: Entendiendo la Arquitectura Limpia
+
+La filosofía central detrás de la estructura de nuestro proyecto es la Arquitectura Limpia. Es una forma de organizar el código en capas, con una regla estricta: las dependencias solo pueden apuntar hacia adentro. Las capas exteriores pueden conocer las capas interiores, pero las capas interiores no saben nada de las exteriores.
+
+Este diagrama puede parecer complejo, pero podemos simplificarlo con una analogía. Piensa en tu aplicación como un reino medieval construido para resistir asedios.
+
+- **Capa de Datos (Las Minas):** Esta es la capa más profunda y fundamental. Su único trabajo es extraer recursos brutos (datos) del mundo exterior, como una base de datos, un archivo local o una API web. Los mineros aquí no saben ni les importa para qué se usará el mineral; simplemente lo extraen y lo envían a la forja. En nuestra aplicación, este es el paquete `local_storage_todos_api`.
+- **Capa de Dominio (La Forja):** Aquí es donde los recursos brutos se refinan de acuerdo con las reglas centrales y atemporales del reino (tu lógica de negocio). La forja define qué es una "espada" (nuestro modelo `Todo`) y contiene los planos (`clase abstracta TodosApi`) de cómo hacer una. También define el rol del maestro herrero (`TodosRepository`). Esta capa es pura lógica; no depende de dónde provienen los datos ni de cómo se mostrarán. Es el corazón de tu aplicación.
+- **Capa de Características / Presentación (Las Ciudades y Campos de Batalla):** Esta es la capa más externa, donde viven los ciudadanos (la UI) y donde se utilizan los objetos refinados de la forja. Cada ciudad es una característica autónoma (`todos_overview`, `edit_todo`). La UI en la ciudad solo debe obtener sus herramientas e instrucciones de su capitán dedicado (el Bloc), no directamente de la forja o las minas. Esto es lo que el usuario ve e interactúa.
+
+El principal beneficio de esta estructura para ti, como desarrollador que aprende estos conceptos, es una reducción masiva de la carga cognitiva. Al separar estrictamente las responsabilidades, solo necesitas pensar en una capa a la vez. Cuando estás diseñando un widget en la Capa de Presentación, no tienes que preocuparte por cómo se almacenan los datos en la base de datos. Cuando estás escribiendo una regla de negocio en la Capa de Dominio, no te importan los colores de los botones. Esta modularidad es una estrategia poderosa que hace que las aplicaciones complejas sean manejables, permitiéndote enfocar tu capacidad intelectual en un problema pequeño y bien definido a la vez.
+
+### 2.2 Organizando tu Inventario: El Enfoque "Feature-First"
+
+Ahora veamos cómo esta arquitectura se traduce en nuestra estructura de carpetas. Dentro de la carpeta `lib` de nuestra aplicación principal `flutter_todos`, crearás dos directorios principales: `core` y `features`.
+
+- `core`: Este directorio contendrá código que se comparte en toda la aplicación. Piénsalo como el "alijo compartido" en un RPG: elementos como funciones de utilidad, definiciones de temas y el punto de entrada principal de la aplicación (mueve a esta carpeta los archivos `app.dart`, `bootstrap.dart`) que son accesibles para todas las características.
+- `features`: Aquí es donde ocurre la acción. Cada subcarpeta dentro de `features` (por ejemplo, `home`, `todos_overview`, `edit_todo`, `stats`) es una misión o nivel autónomo. Tiene su propia UI (presentación), su propio controlador lógico (aplicación/Bloc) y todo lo que necesita para funcionar de forma independiente. Esto hace que sea increíblemente fácil agregar, eliminar o modificar características sin romper otras partes de la aplicación.
+
+Esta organización "feature-first", combinada con la arquitectura en capas, crea un proyecto limpio, escalable y agradable de navegar.
+
