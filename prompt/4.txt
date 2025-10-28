@@ -1,0 +1,719 @@
+### La UI: Dándole Vida
+
+# **Widgets**
+
+`todo_list_tile.dart` is the `ListTile` for each todo item.
+
+En `lib/features/todos_overview/widgets/todo_list_tile.dart`:
+
+import 'package:flutter/material.dart';
+import 'package:todos_repository/todos_repository.dart';
+
+class TodoListTile extends StatelessWidget {
+  const TodoListTile({
+    required this.todo,
+    super.key,
+    this.onToggleCompleted,
+    this.onDismissed,
+    this.onTap,
+  });
+
+  final Todo todo;
+  final ValueChanged<bool>? onToggleCompleted;
+  final DismissDirectionCallback? onDismissed;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final captionColor = theme.textTheme.bodySmall?.color;
+
+    return Dismissible(
+      key: Key('todoListTile_dismissible_${todo.id}'),
+      onDismissed: onDismissed,
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        color: theme.colorScheme.error,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: const Icon(
+          Icons.delete,
+          color: Color(0xAAFFFFFF),
+        ),
+      ),
+      child: ListTile(
+        onTap: onTap,
+        title: Text(
+          todo.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: !todo.isCompleted
+              ? null
+              : TextStyle(
+                  color: captionColor,
+                  decoration: TextDecoration.lineThrough,
+                ),
+        ),
+        subtitle: Text(
+          todo.description,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        leading: Checkbox(
+          shape: const ContinuousRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(8)),
+          ),
+          value: todo.isCompleted,
+          onChanged: onToggleCompleted == null
+              ? null
+              : (value) => onToggleCompleted!(value!),
+        ),
+        trailing: onTap == null ? null : const Icon(Icons.chevron_right),
+      ),
+    );
+  }
+}
+
+`todos_overview_options_button.dart` exposes two options for manipulating todos:
+
+- `toggleAll`
+- `clearCompleted`
+
+En `lib/features/todos_overview/widgets/todos_overview_options_button.dart`:
+
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:javerage_todos/features/todos_overview/bloc/todos_overview_bloc.dart';
+import 'package:javerage_todos/l10n/l10n.dart';
+
+@visibleForTesting
+enum TodosOverviewOption { toggleAll, clearCompleted }
+
+class TodosOverviewOptionsButton extends StatelessWidget {
+  const TodosOverviewOptionsButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    final todos = context.select((TodosOverviewBloc bloc) => bloc.state.todos);
+    final hasTodos = todos.isNotEmpty;
+    final completedTodosAmount = todos.where((todo) => todo.isCompleted).length;
+
+    return PopupMenuButton<TodosOverviewOption>(
+      shape: const ContinuousRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+      tooltip: l10n.todosOverviewOptionsTooltip,
+      onSelected: (options) {
+        switch (options) {
+          case TodosOverviewOption.toggleAll:
+            context.read<TodosOverviewBloc>().add(
+              const TodosOverviewToggleAllRequested(),
+            );
+          case TodosOverviewOption.clearCompleted:
+            context.read<TodosOverviewBloc>().add(
+              const TodosOverviewClearCompletedRequested(),
+            );
+        }
+      },
+      itemBuilder: (context) {
+        return [
+          PopupMenuItem(
+            value: TodosOverviewOption.toggleAll,
+            enabled: hasTodos,
+            child: Text(
+              completedTodosAmount == todos.length
+                  ? l10n.todosOverviewOptionsMarkAllIncomplete
+                  : l10n.todosOverviewOptionsMarkAllComplete,
+            ),
+          ),
+          PopupMenuItem(
+            value: TodosOverviewOption.clearCompleted,
+            enabled: hasTodos && completedTodosAmount > 0,
+            child: Text(l10n.todosOverviewOptionsClearCompleted),
+          ),
+        ];
+      },
+      icon: const Icon(Icons.more_vert_rounded),
+    );
+  }
+}
+
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:javerage_todos/features/todos_overview/bloc/todos_overview_bloc.dart';
+import 'package:javerage_todos/l10n/l10n.dart';
+
+@visibleForTesting
+enum TodosOverviewOption { toggleAll, clearCompleted }
+
+class TodosOverviewOptionsButton extends StatelessWidget {
+  const TodosOverviewOptionsButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    final todos = context.select((TodosOverviewBloc bloc) => bloc.state.todos);
+    final hasTodos = todos.isNotEmpty;
+    final completedTodosAmount = todos.where((todo) => todo.isCompleted).length;
+
+    return PopupMenuButton<TodosOverviewOption>(
+      shape: const ContinuousRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+      tooltip: l10n.todosOverviewOptionsTooltip,
+      onSelected: (options) {
+        switch (options) {
+          case TodosOverviewOption.toggleAll:
+            context.read<TodosOverviewBloc>().add(
+              const TodosOverviewToggleAllRequested(),
+            );
+          case TodosOverviewOption.clearCompleted:
+            context.read<TodosOverviewBloc>().add(
+              const TodosOverviewClearCompletedRequested(),
+            );
+        }
+      },
+      itemBuilder: (context) {
+        return [
+          PopupMenuItem(
+            value: TodosOverviewOption.toggleAll,
+            enabled: hasTodos,
+            child: Text(
+              completedTodosAmount == todos.length
+                  ? l10n.todosOverviewOptionsMarkAllIncomplete
+                  : l10n.todosOverviewOptionsMarkAllComplete,
+            ),
+          ),
+          PopupMenuItem(
+            value: TodosOverviewOption.clearCompleted,
+            enabled: hasTodos && completedTodosAmount > 0,
+            child: Text(l10n.todosOverviewOptionsClearCompleted),
+          ),
+        ];
+      },
+      icon: const Icon(Icons.more_vert_rounded),
+    );
+  }
+}
+
+`todos_overview_filter_button.dart` exposes three filter options:
+
+- `all`
+- `activeOnly`
+- `completedOnly`
+
+En `lib/features/todos_overview/widgets/todos_overview_filter_button.dart`:
+
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:javerage_todos/features/todos_overview/bloc/todos_overview_bloc.dart';
+import 'package:javerage_todos/features/todos_overview/models/todos_view_filter.dart';
+import 'package:javerage_todos/l10n/l10n.dart';
+
+class TodosOverviewFilterButton extends StatelessWidget {
+  const TodosOverviewFilterButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    final activeFilter = context.select(
+      (TodosOverviewBloc bloc) => bloc.state.filter,
+    );
+
+    return PopupMenuButton<TodosViewFilter>(
+      shape: const ContinuousRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+      initialValue: activeFilter,
+      tooltip: l10n.todosOverviewFilterTooltip,
+      onSelected: (filter) {
+        context.read<TodosOverviewBloc>().add(
+          TodosOverviewFilterChanged(filter),
+        );
+      },
+      itemBuilder: (context) {
+        return [
+          PopupMenuItem(
+            value: TodosViewFilter.all,
+            child: Text(l10n.todosOverviewFilterAll),
+          ),
+          PopupMenuItem(
+            value: TodosViewFilter.activeOnly,
+            child: Text(l10n.todosOverviewFilterActiveOnly),
+          ),
+          PopupMenuItem(
+            value: TodosViewFilter.completedOnly,
+            child: Text(l10n.todosOverviewFilterCompletedOnly),
+          ),
+        ];
+      },
+      icon: const Icon(Icons.filter_list_rounded),
+    );
+  }
+}
+
+widgets.dart is another barrel file that exports all the components used within the todos_overview feature.
+
+export 'todo_list_tile.dart';
+export 'todos_overview_filter_button.dart';
+export 'todos_overview_options_button.dart';
+
+Finalmente, construimos la UI. La `TodosOverviewPage` es responsable de crear y proporcionar el `TodosOverviewBloc` a sus hijos. La `TodosOverviewView` luego usa widgets especiales del paquete `flutter_bloc` para escuchar al Bloc y construir la UI.
+
+En `lib/features/todos_overview/view/todos_overview_page.dart`:
+
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:javerage_todos/features/edit_todo/view/edit_todo_page.dart';
+import 'package:javerage_todos/features/todos_overview/bloc/todos_overview_bloc.dart';
+import 'package:javerage_todos/features/todos_overview/widgets/widgets.dart';
+import 'package:javerage_todos/l10n/l10n.dart';
+import 'package:todos_repository/todos_repository.dart';
+
+class TodosOverviewPage extends StatelessWidget {
+  const TodosOverviewPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => TodosOverviewBloc(
+        todosRepository: context.read<TodosRepository>(),
+      )..add(const TodosOverviewSubscriptionRequested()),
+      child: const TodosOverviewView(),
+    );
+  }
+}
+
+class TodosOverviewView extends StatelessWidget {
+  const TodosOverviewView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.todosOverviewAppBarTitle),
+        actions: const [
+          TodosOverviewFilterButton(),
+          TodosOverviewOptionsButton(),
+        ],
+      ),
+      body: MultiBlocListener(
+        listeners: [
+          BlocListener<TodosOverviewBloc, TodosOverviewState>(
+            listenWhen: (previous, current) =>
+                previous.status != current.status,
+            listener: (context, state) {
+              if (state.status == TodosOverviewStatus.failure) {
+                ScaffoldMessenger.of(context)
+                  ..hideCurrentSnackBar()
+                  ..showSnackBar(
+                    SnackBar(
+                      content: Text(l10n.todosOverviewErrorSnackbarText),
+                    ),
+                  );
+              }
+            },
+          ),
+          BlocListener<TodosOverviewBloc, TodosOverviewState>(
+            listenWhen: (previous, current) =>
+                previous.lastDeletedTodo != current.lastDeletedTodo &&
+                current.lastDeletedTodo != null,
+            listener: (context, state) {
+              final deletedTodo = state.lastDeletedTodo!;
+              final messenger = ScaffoldMessenger.of(context);
+              messenger
+                ..hideCurrentSnackBar()
+                ..showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      l10n.todosOverviewTodoDeletedSnackbarText(
+                        deletedTodo.title,
+                      ),
+                    ),
+                    action: SnackBarAction(
+                      label: l10n.todosOverviewUndoDeletionButtonText,
+                      onPressed: () {
+                        messenger.hideCurrentSnackBar();
+                        context.read<TodosOverviewBloc>().add(
+                          const TodosOverviewUndoDeletionRequested(),
+                        );
+                      },
+                    ),
+                  ),
+                );
+            },
+          ),
+        ],
+        child: BlocBuilder<TodosOverviewBloc, TodosOverviewState>(
+          builder: (context, state) {
+            if (state.todos.isEmpty) {
+              if (state.status == TodosOverviewStatus.loading) {
+                return const Center(child: CupertinoActivityIndicator());
+              } else if (state.status != TodosOverviewStatus.success) {
+                return const SizedBox();
+              } else {
+                return Center(
+                  child: Text(
+                    l10n.todosOverviewEmptyText,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                );
+              }
+            }
+
+            return CupertinoScrollbar(
+              child: ListView.builder(
+                itemCount: state.filteredTodos.length,
+                itemBuilder: (_, index) {
+                  final todo = state.filteredTodos.elementAt(index);
+                  return TodoListTile(
+                    todo: todo,
+                    onToggleCompleted: (isCompleted) {
+                      context.read<TodosOverviewBloc>().add(
+                        TodosOverviewTodoCompletionToggled(
+                          todo: todo,
+                          isCompleted: isCompleted,
+                        ),
+                      );
+                    },
+                    onDismissed: (_) {
+                      context.read<TodosOverviewBloc>().add(
+                        TodosOverviewTodoDeleted(todo),
+                      );
+                    },
+                    onTap: () {
+                      Navigator.of(context).push(
+                        EditTodoPage.route(initialTodo: todo),
+                      );
+                    },
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+view.dart is the barrel file that exports todos_overview_page.dart.
+
+export 'todos_overview_page.dart';
+
+Analicemos los widgets clave de Bloc utilizados aquí:
+
+- `BlocProvider`: Este widget "equipa" el árbol de widgets con nuestro `TodosOverviewBloc`, haciéndolo disponible para todos los widgets descendientes. También agregamos nuestro evento inicial aquí para empezar.
+- `BlocBuilder`: Este es un "explorador" que escucha cada nuevo estado emitido por el Bloc. Cada vez que el estado cambia, la función `builder` se ejecuta de nuevo, reconstruyendo la UI con los nuevos datos. Esto es lo que hace que nuestro `ListView` se actualice.
+- `BlocListener`: Este es un "espía" que también escucha los cambios de estado, pero no construye ninguna UI. Se utiliza para realizar acciones de una sola vez o "efectos secundarios" en respuesta a un cambio de estado, como mostrar un `SnackBar`, navegar a una nueva pantalla o mostrar un diálogo. Aquí, lo usamos para mostrar mensajes de error y de deshacer.
+- `context.read<TodosOverviewBloc>()`: Así es como "disparamos un comando de una sola vez" al Bloc. Lo usamos dentro de callbacks como `onDismissed` para obtener acceso a la instancia del Bloc y `add` un nuevo evento. No escucha los cambios.
+
+---
+
+### **Home**
+
+The home feature is responsible for managing the state of the currently-selected tab and displays the correct subtree.
+
+### **HomeState**
+
+There are only two states associated with the two screens: `todos` and `stats`.
+
+En lib/feature/home/cubit/home_state.dart:
+
+part of 'home_cubit.dart';
+
+enum HomeTab { todos, stats }
+
+final class HomeState extends Equatable {
+  const HomeState({
+    this.tab = HomeTab.todos,
+  });
+
+  final HomeTab tab;
+
+  @override
+  List<Object> get props => [tab];
+}
+
+### **HomeCubit**
+
+A cubit is appropriate in this case due to the simplicity of the business logic. We have one method `setTab` to change the tab.
+
+En lib/features/home/cubit/home_cubit.dart:
+
+import 'package:bloc/bloc.dart';
+import 'package:equatable/equatable.dart';
+
+part 'home_state.dart';
+
+class HomeCubit extends Cubit<HomeState> {
+  HomeCubit() : super(const HomeState());
+
+  void setTab(HomeTab tab) => emit(HomeState(tab: tab));
+}
+
+### **HomeView**
+
+`home_page.dart` contains the UI for the root page that the user will see when the app is launched.
+
+En lib/features/home/view/home_page.dart
+
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:javerage_todos/features/edit_todo/view/edit_todo_page.dart';
+import 'package:javerage_todos/features/home/cubit/home_cubit.dart';
+import 'package:javerage_todos/features/stats/view/stats_page.dart';
+import 'package:javerage_todos/features/todos_overview/view/todos_overview_page.dart';
+
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => HomeCubit(),
+      child: const HomeView(),
+    );
+  }
+}
+
+class HomeView extends StatelessWidget {
+  const HomeView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedTab = context.select((HomeCubit cubit) => cubit.state.tab);
+
+    return Scaffold(
+      body: IndexedStack(
+        index: selectedTab.index,
+        children: const [TodosOverviewPage(), StatsPage()],
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: FloatingActionButton(
+        shape: const CircleBorder(),
+        key: const Key('homeView_addTodo_floatingActionButton'),
+        onPressed: () => Navigator.of(context).push(EditTodoPage.route()),
+        child: const Icon(Icons.add),
+      ),
+      bottomNavigationBar: BottomAppBar(
+        shape: const CircularNotchedRectangle(),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _HomeTabButton(
+              groupValue: selectedTab,
+              value: HomeTab.todos,
+              icon: const Icon(Icons.list_rounded),
+            ),
+            _HomeTabButton(
+              groupValue: selectedTab,
+              value: HomeTab.stats,
+              icon: const Icon(Icons.show_chart_rounded),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeTabButton extends StatelessWidget {
+  const _HomeTabButton({
+    required this.groupValue,
+    required this.value,
+    required this.icon,
+  });
+
+  final HomeTab groupValue;
+  final HomeTab value;
+  final Widget icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: () => context.read<HomeCubit>().setTab(value),
+      iconSize: 32,
+      color: groupValue != value
+          ? null
+          : Theme.of(context).colorScheme.secondary,
+      icon: icon,
+    );
+  }
+}
+
+app_bloc_observer.dart
+
+import 'dart:developer';
+
+import 'package:bloc/bloc.dart';
+
+class AppBlocObserver extends BlocObserver {
+  const AppBlocObserver();
+
+  @override
+  void onChange(BlocBase<dynamic> bloc, Change<dynamic> change) {
+    super.onChange(bloc, change);
+    log('onChange(${bloc.runtimeType}, $change)');
+  }
+
+  @override
+  void onError(BlocBase<dynamic> bloc, Object error, StackTrace stackTrace) {
+    log('onError(${bloc.runtimeType}, $error, $stackTrace)');
+    super.onError(bloc, error, stackTrace);
+  }
+}
+
+### **App**
+
+`App` wraps a `RepositoryProvider` widget that provides the repository to all children. Since both the `EditTodoPage` and `HomePage` subtrees are descendents, all the blocs and cubits can access the repository.
+
+`AppView` creates the `MaterialApp` and configures the theme and localizations.
+
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:javerage_todos/core/theme/theme.dart';
+import 'package:javerage_todos/features/home/view/home_page.dart';
+import 'package:javerage_todos/l10n/gen/app_localizations.dart';
+import 'package:todos_repository/todos_repository.dart';
+
+class App extends StatelessWidget {
+  const App({required this.createTodosRepository, super.key});
+
+  final TodosRepository Function() createTodosRepository;
+
+  @override
+  Widget build(BuildContext context) {
+    return RepositoryProvider<TodosRepository>(
+      create: (_) => createTodosRepository(),
+      dispose: (repository) => repository.dispose(),
+      child: const AppView(),
+    );
+  }
+}
+
+class AppView extends StatelessWidget {
+  const AppView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      theme: FlutterTodosTheme.light,
+      darkTheme: FlutterTodosTheme.dark,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: const HomePage(),
+    );
+  }
+}
+
+### **Bootstrapping**
+
+Localiza el archivo `bootstrap.dart` loads our `BlocObserver` and creates the instance of `TodosRepository`.
+
+import 'dart:developer';
+
+import 'package:bloc/bloc.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:javerage_todos/core/app/view/app.dart';
+import 'package:javerage_todos/core/app/view/app_bloc_observer.dart';
+import 'package:todos_api/todos_api.dart';
+import 'package:todos_repository/todos_repository.dart';
+
+void bootstrap({required TodosApi todosApi}) {
+  FlutterError.onError = (details) {
+    log(details.exceptionAsString(), stackTrace: details.stack);
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    log(error.toString(), stackTrace: stack);
+    return true;
+  };
+
+  Bloc.observer = const AppBlocObserver();
+
+  runApp(App(createTodosRepository: () => TodosRepository(todosApi: todosApi)));
+}
+
+import 'package:flutter/widgets.dart';
+import 'package:javerage_todos/core/bootstrap.dart';
+import 'package:local_storage_todos_api/local_storage_todos_api.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final todosApi = LocalStorageTodosApi(
+    plugin: await SharedPreferences.getInstance(),
+  );
+
+  bootstrap(todosApi: todosApi);
+}
+
+### **Feature Layer**
+
+### **Entrypoint**
+
+Our app’s entrypoint is `main.dart`. In this case, there are three versions:
+
+En lib/main_development.dart:
+
+import 'package:flutter/widgets.dart';
+import 'package:javerage_todos/core/bootstrap.dart';
+import 'package:local_storage_todos_api/local_storage_todos_api.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final todosApi = LocalStorageTodosApi(
+    plugin: await SharedPreferences.getInstance(),
+  );
+
+  bootstrap(todosApi: todosApi);
+}
+
+En lib/main_staging.dart:
+
+import 'package:flutter/widgets.dart';
+import 'package:javerage_todos/core/bootstrap.dart';
+import 'package:local_storage_todos_api/local_storage_todos_api.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final todosApi = LocalStorageTodosApi(
+    plugin: await SharedPreferences.getInstance(),
+  );
+
+  bootstrap(todosApi: todosApi);
+}
+
+En lib/main_production.dart:
+
+import 'package:flutter/widgets.dart';
+import 'package:javerage_todos/core/bootstrap.dart';
+import 'package:local_storage_todos_api/local_storage_todos_api.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final todosApi = LocalStorageTodosApi(
+    plugin: await SharedPreferences.getInstance(),
+  );
+
+  bootstrap(todosApi: todosApi);
+}
+
+2
+

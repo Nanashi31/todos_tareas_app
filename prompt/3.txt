@@ -1,0 +1,1252 @@
+## Parte 4: El Centro de Comando – La Capa de Características con Bloc
+
+Con nuestras capas de datos y dominio forjadas, ahora podemos construir el centro de comando: las características que el usuario realmente verá e interactuará. Aquí es donde entra en juego Bloc para gestionar el estado y orquestar la lógica de nuestra UI.
+
+### Configuración de Dependencias
+
+En el proyecto `javerage_todos`, agreguemos los paquetes que necesitaremos. Ejecuta los siguientes comandos en tu terminal:
+
+```bash
+flutter pub add equatable json_annotation meta uuid
+
+flutter pub add dev:build_runner
+```
+
+Actualiza las referencias para incluir las referencias a los proyectos locales en el archivo .yaml
+
+# ... other settings
+
+dependencies:
+  bloc: ^9.0.1
+  equatable: ^2.0.7
+  flutter:
+    sdk: flutter
+  flutter_bloc: ^9.1.1
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
+  json_annotation: ^4.9.0
+  json_serializable: ^6.11.1
+  # include the local_storage_todos_api package
+  local_storage_todos_api:
+    path: packages/local_storage_todos_api
+  meta: ^1.16.0
+  # include the todos_api package
+  todos_api:
+    path: packages/todos_api
+  # include the todos_repository package
+  todos_repository:
+    path: packages/todos_repository
+  uuid: ^4.5.1
+
+# ... other settings
+
+### 4.1 Configurar los archivos de idiomas para la aplicación:
+
+Localiza el archivo `app_en.arb` y sustituye su valor por el siguiente texto:
+
+{
+  "@@locale": "en",
+  "todosOverviewAppBarTitle": "Flutter Todos",
+  "@todosOverviewAppBarTitle": {
+    "description": "Title text shown in the AppBar of the Todos Overview Page"
+  },
+  "todosOverviewFilterTooltip": "Filter",
+  "@todosOverviewFilterTooltip": {
+    "description": "Tooltip text shown in the filter dropdown of the Todos Overview Page"
+  },
+  "todosOverviewFilterAll": "All",
+  "@todosOverviewFilterAll": {
+    "description": "Text shown in the filter dropdown of the Todos Overview Page for the option to display all todos"
+  },
+  "todosOverviewFilterActiveOnly": "Active only",
+  "@todosOverviewFilterActiveOnly": {
+    "description": "Text shown in the filter dropdown of the Todos Overview Page for the option to display active todos only"
+  },
+  "todosOverviewFilterCompletedOnly": "Completed only",
+  "@todosOverviewFilterCompletedOnly": {
+    "description": "Text shown in the filter dropdown of the Todos Overview Page for the option to display completed todos only"
+  },
+  "todosOverviewMarkAllCompleteButtonText": "Mark all complete",
+  "@todosOverviewMarkAllCompleteButtonText": {
+    "description": "Button text shown in the options dropdown of the Todos Overview Page that marks all current todos as complete"
+  },
+  "todosOverviewClearCompletedButtonText": "Clear completed",
+  "@todosOverviewClearCompletedButtonText": {
+    "description": "Button text shown in the options dropdown of the Todos Overview Page that deletes all completed todos"
+  },
+  "todosOverviewEmptyText": "No todos found with the selected filters.",
+  "@todosOverviewEmptyText": {
+    "description": "Text shown in the Todos Overview Page when no todos are found with the selected filters"
+  },
+  "todosOverviewTodoDeletedSnackbarText": "Todo \"{todoTitle}\" deleted.",
+  "@todosOverviewTodoDeletedSnackbarText": {
+    "description": "Snackbar text shown when a todo is deleted from the Todos Overview Page",
+    "placeholders": {
+      "todoTitle": {
+        "description": "The title of the todo that was deleted"
+      }
+    }
+  },
+  "todosOverviewUndoDeletionButtonText": "Undo",
+  "@todosOverviewUndoDeletionButtonText": {
+    "description": "Button text shown in the snackbar that undoes a deletion of a todo"
+  },
+  "todosOverviewErrorSnackbarText": "An error occurred while loading todos.",
+  "@todosOverviewErrorSnackbarText": {
+    "description": "Snackbar text shown when an error occurs while loading todos"
+  },
+  "todosOverviewOptionsTooltip": "Options",
+  "@todosOverviewOptionsTooltip": {
+    "description": "Tooltip text shown in the options dropdown of the Todos Overview Page"
+  },
+  "todosOverviewOptionsMarkAllComplete": "Mark all as completed",
+  "@todosOverviewOptionsMarkAllComplete": {
+    "description": "Button text shown in the options dropdown of the Todos Overview Page that marks all todos as complete"
+  },
+  "todosOverviewOptionsMarkAllIncomplete": "Mark all as incomplete",
+  "@todosOverviewOptionsMarkAllIncomplete": {
+    "description": "Button text shown in the options dropdown of the Todos Overview Page that marks all todos as incomplete"
+  },
+  "todosOverviewOptionsClearCompleted": "Clear completed",
+  "@todosOverviewOptionsClearCompleted": {
+    "description": "Button text shown in the options dropdown of the Todos Overview Page that deletes all completed todos"
+  },
+  "todoDetailsAppBarTitle": "Todo Details",
+  "@todoDetailsAppBarTitle": {
+    "description": "Title text shown in the AppBar of the Todo Details Page"
+  },
+  "todoDetailsDeleteButtonTooltip": "Delete",
+  "@todoDetailsDeleteButtonTooltip": {
+    "description": "Tooltip text shown in the delete button on the Todo Details Page"
+  },
+  "todoDetailsEditButtonTooltip": "Edit",
+  "@todoDetailsEditButtonTooltip": {
+    "description": "Tooltip text shown in the edit button on the Todo Details Page"
+  },
+  "editTodoEditAppBarTitle": "Edit Todo",
+  "@editTodoEditAppBarTitle": {
+    "description": "Title text shown in the AppBar of the Todo Edit Page when editing an existing todo"
+  },
+  "editTodoAddAppBarTitle": "Add Todo",
+  "@editTodoAddAppBarTitle": {
+    "description": "Title text shown in the AppBar of the Todo Edit Page when adding a new todo"
+  },
+  "editTodoTitleLabel": "Title",
+  "@editTodoTitleLabel": {
+    "description": "Label text shown in the title input field of the Todo Edit Page"
+  },
+  "editTodoDescriptionLabel": "Description",
+  "@editTodoDescriptionLabel": {
+    "description": "Label text shown in the description input field of the Todo Edit Page"
+  },
+  "editTodoSaveButtonTooltip": "Save changes",
+  "@editTodoSaveButtonTooltip": {
+    "description": "Tooltip text shown in the save button on the Todo Edit Page"
+  },
+  "statsAppBarTitle": "Stats",
+  "@statsAppBarTitle": {
+    "description": "Title text shown in the AppBar of the Stats Page"
+  },
+  "statsCompletedTodoCountLabel": "Completed todos",
+  "@statsCompletedTodoCountLabel": {
+    "description": "Label text shown in the completed todos count section of the Stats Page"
+  },
+  "statsActiveTodoCountLabel": "Active todos",
+  "@statsActiveTodoCountLabel": {
+    "description": "Label text shown in the active todos count section of the Stats Page"
+  }
+}
+
+Localiza el archivo app_es.arb y sustituye su valor por el siguiente texto:
+
+{
+  "@@locale": "es",
+  "todosOverviewAppBarTitle": "Flutter Todos",
+  "@todosOverviewAppBarTitle": {
+    "description": "Texto del título mostrado en la AppBar de la página de vista general de tareas"
+  },
+  "todosOverviewFilterTooltip": "Filtrar",
+  "@todosOverviewFilterTooltip": {
+    "description": "Texto del tooltip mostrado en el menú desplegable de filtrado de la página de vista general de tareas"
+  },
+  "todosOverviewFilterAll": "Todas",
+  "@todosOverviewFilterAll": {
+    "description": "Texto mostrado en el menú desplegable de filtrado de la página de vista general de tareas para la opción que muestra todas las tareas"
+  },
+  "todosOverviewFilterActiveOnly": "Solo activas",
+  "@todosOverviewFilterActiveOnly": {
+    "description": "Texto mostrado en el menú desplegable de filtrado de la página de vista general de tareas para la opción que muestra solo las tareas activas"
+  },
+  "todosOverviewFilterCompletedOnly": "Solo completadas",
+  "@todosOverviewFilterCompletedOnly": {
+    "description": "Texto mostrado en el menú desplegable de filtrado de la página de vista general de tareas para la opción que muestra solo las tareas completadas"
+  },
+  "todosOverviewMarkAllCompleteButtonText": "Marcar todas como completadas",
+  "@todosOverviewMarkAllCompleteButtonText": {
+    "description": "Texto del botón mostrado en el menú de opciones de la página de vista general de tareas que marca todas las tareas actuales como completadas"
+  },
+  "todosOverviewClearCompletedButtonText": "Eliminar completadas",
+  "@todosOverviewClearCompletedButtonText": {
+    "description": "Texto del botón mostrado en el menú de opciones de la página de vista general de tareas que elimina todas las tareas completadas"
+  },
+  "todosOverviewEmptyText": "No se encontraron tareas con los filtros seleccionados.",
+  "@todosOverviewEmptyText": {
+    "description": "Texto mostrado en la página de vista general de tareas cuando no se encuentran tareas con los filtros seleccionados"
+  },
+  "todosOverviewTodoDeletedSnackbarText": "Tarea \"{todoTitle}\" eliminada.",
+  "@todosOverviewTodoDeletedSnackbarText": {
+    "description": "Texto del snackbar mostrado cuando se elimina una tarea desde la página de vista general de tareas",
+    "placeholders": {
+      "todoTitle": {
+        "description": "El título de la tarea que fue eliminada"
+      }
+    }
+  },
+  "todosOverviewUndoDeletionButtonText": "Deshacer",
+  "@todosOverviewUndoDeletionButtonText": {
+    "description": "Texto del botón mostrado en el snackbar que deshace la eliminación de una tarea"
+  },
+  "todosOverviewErrorSnackbarText": "Ocurrió un error al cargar las tareas.",
+  "@todosOverviewErrorSnackbarText": {
+    "description": "Texto del snackbar mostrado cuando ocurre un error al cargar las tareas"
+  },
+  "todosOverviewOptionsTooltip": "Opciones",
+  "@todosOverviewOptionsTooltip": {
+    "description": "Texto del tooltip mostrado en el menú desplegable de opciones de la página de vista general de tareas"
+  },
+  "todosOverviewOptionsMarkAllComplete": "Marcar todas como completadas",
+  "@todosOverviewOptionsMarkAllComplete": {
+    "description": "Texto del botón mostrado en el menú de opciones de la página de vista general de tareas que marca todas las tareas como completadas"
+  },
+  "todosOverviewOptionsMarkAllIncomplete": "Marcar todas como incompletas",
+  "@todosOverviewOptionsMarkAllIncomplete": {
+    "description": "Texto del botón mostrado en el menú de opciones de la página de vista general de tareas que marca todas las tareas como incompletas"
+  },
+  "todosOverviewOptionsClearCompleted": "Eliminar completadas",
+  "@todosOverviewOptionsClearCompleted": {
+    "description": "Texto del botón mostrado en el menú de opciones de la página de vista general de tareas que elimina todas las tareas completadas"
+  },
+  "todoDetailsAppBarTitle": "Detalles de la tarea",
+  "@todoDetailsAppBarTitle": {
+    "description": "Texto del título mostrado en la AppBar de la página de detalles de una tarea"
+  },
+  "todoDetailsDeleteButtonTooltip": "Eliminar",
+  "@todoDetailsDeleteButtonTooltip": {
+    "description": "Texto del tooltip mostrado en el botón de eliminar en la página de detalles de una tarea"
+  },
+  "todoDetailsEditButtonTooltip": "Editar",
+  "@todoDetailsEditButtonTooltip": {
+    "description": "Texto del tooltip mostrado en el botón de editar en la página de detalles de una tarea"
+  },
+  "editTodoEditAppBarTitle": "Editar tarea",
+  "@editTodoEditAppBarTitle": {
+    "description": "Texto del título mostrado en la AppBar de la página de edición de una tarea al editar una tarea existente"
+  },
+  "editTodoAddAppBarTitle": "Agregar tarea",
+  "@editTodoAddAppBarTitle": {
+    "description": "Texto del título mostrado en la AppBar de la página de edición de una tarea al agregar una nueva tarea"
+  },
+  "editTodoTitleLabel": "Título",
+  "@editTodoTitleLabel": {
+    "description": "Texto de la etiqueta mostrado en el campo de entrada del título en la página de edición de una tarea"
+  },
+  "editTodoDescriptionLabel": "Descripción",
+  "@editTodoDescriptionLabel": {
+    "description": "Texto de la etiqueta mostrado en el campo de entrada de la descripción en la página de edición de una tarea"
+  },
+  "editTodoSaveButtonTooltip": "Guardar cambios",
+  "@editTodoSaveButtonTooltip": {
+    "description": "Texto del tooltip mostrado en el botón de guardar en la página de edición de una tarea"
+  },
+  "statsAppBarTitle": "Estadísticas",
+  "@statsAppBarTitle": {
+    "description": "Texto del título mostrado en la AppBar de la página de estadísticas"
+  },
+  "statsCompletedTodoCountLabel": "Tareas completadas",
+  "@statsCompletedTodoCountLabel": {
+    "description": "Texto de la etiqueta mostrado en la sección del recuento de tareas completadas en la página de estadísticas"
+  },
+  "statsActiveTodoCountLabel": "Tareas activas",
+  "@statsActiveTodoCountLabel": {
+    "description": "Texto de la etiqueta mostrado en la sección del recuento de tareas activas en la página de estadísticas"
+  }
+}
+
+Localiza el archivo app_localizations_en.dart y sustituye su valor por el siguiente texto:
+
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for English (`en`).
+class AppLocalizationsEn extends AppLocalizations {
+  AppLocalizationsEn([String locale = 'en']) : super(locale);
+
+  @override
+  String get todosOverviewAppBarTitle => 'Javerage Todos';
+
+  @override
+  String get todosOverviewFilterTooltip => 'Filter';
+
+  @override
+  String get todosOverviewFilterAll => 'All';
+
+  @override
+  String get todosOverviewFilterActiveOnly => 'Active only';
+
+  @override
+  String get todosOverviewFilterCompletedOnly => 'Completed only';
+
+  @override
+  String get todosOverviewMarkAllCompleteButtonText => 'Mark all complete';
+
+  @override
+  String get todosOverviewClearCompletedButtonText => 'Clear completed';
+
+  @override
+  String get todosOverviewEmptyText =>
+      'No todos found with the selected filters.';
+
+  @override
+  String todosOverviewTodoDeletedSnackbarText(Object todoTitle) {
+    return 'Todo \"$todoTitle\" deleted.';
+  }
+
+  @override
+  String get todosOverviewUndoDeletionButtonText => 'Undo';
+
+  @override
+  String get todosOverviewErrorSnackbarText =>
+      'An error occurred while loading todos.';
+
+  @override
+  String get todosOverviewOptionsTooltip => 'Options';
+
+  @override
+  String get todosOverviewOptionsMarkAllComplete => 'Mark all as completed';
+
+  @override
+  String get todosOverviewOptionsMarkAllIncomplete => 'Mark all as incomplete';
+
+  @override
+  String get todosOverviewOptionsClearCompleted => 'Clear completed';
+
+  @override
+  String get todoDetailsAppBarTitle => 'Todo Details';
+
+  @override
+  String get todoDetailsDeleteButtonTooltip => 'Delete';
+
+  @override
+  String get todoDetailsEditButtonTooltip => 'Edit';
+
+  @override
+  String get editTodoEditAppBarTitle => 'Edit Todo';
+
+  @override
+  String get editTodoAddAppBarTitle => 'Add Todo';
+
+  @override
+  String get editTodoTitleLabel => 'Title';
+
+  @override
+  String get editTodoDescriptionLabel => 'Description';
+
+  @override
+  String get editTodoSaveButtonTooltip => 'Save changes';
+
+  @override
+  String get statsAppBarTitle => 'Stats';
+
+  @override
+  String get statsCompletedTodoCountLabel => 'Completed todos';
+
+  @override
+  String get statsActiveTodoCountLabel => 'Active todos';
+}
+
+Localiza el archivo app_localizations_es.dart y sustituye su valor por el siguiente texto:
+
+// dart format off
+// coverage:ignore-file
+
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Spanish (`es`).
+class AppLocalizationsEs extends AppLocalizations {
+  AppLocalizationsEs([String locale = 'es']) : super(locale);
+
+  @override
+  String get todosOverviewAppBarTitle => 'Flutter Tareas';
+
+  @override
+  String get todosOverviewFilterTooltip => 'Filtrar';
+
+  @override
+  String get todosOverviewFilterAll => 'Todas';
+
+  @override
+  String get todosOverviewFilterActiveOnly => 'Solo activas';
+
+  @override
+  String get todosOverviewFilterCompletedOnly => 'Solo completadas';
+
+  @override
+  String get todosOverviewMarkAllCompleteButtonText => 'Marcar todas como completadas';
+
+  @override
+  String get todosOverviewClearCompletedButtonText => 'Eliminar completadas';
+
+  @override
+  String get todosOverviewEmptyText =>
+      'No se encontraron tareas con los filtros seleccionados.';
+
+  @override
+  String todosOverviewTodoDeletedSnackbarText(Object todoTitle) {
+    return 'Tarea "$todoTitle" eliminada.';
+  }
+
+  @override
+  String get todosOverviewUndoDeletionButtonText => 'Deshacer';
+
+  @override
+  String get todosOverviewErrorSnackbarText =>
+      'Ocurrió un error al cargar las tareas.';
+
+  @override
+  String get todosOverviewOptionsTooltip => 'Opciones';
+
+  @override
+  String get todosOverviewOptionsMarkAllComplete => 'Marcar todas como completadas';
+
+  @override
+  String get todosOverviewOptionsMarkAllIncomplete => 'Marcar todas como incompletas';
+
+  @override
+  String get todosOverviewOptionsClearCompleted => 'Eliminar completadas';
+
+  @override
+  String get todoDetailsAppBarTitle => 'Detalles de la tarea';
+
+  @override
+  String get todoDetailsDeleteButtonTooltip => 'Eliminar';
+
+  @override
+  String get todoDetailsEditButtonTooltip => 'Editar';
+
+  @override
+  String get editTodoEditAppBarTitle => 'Editar tarea';
+
+  @override
+  String get editTodoAddAppBarTitle => 'Agregar tarea';
+
+  @override
+  String get editTodoTitleLabel => 'Título';
+
+  @override
+  String get editTodoDescriptionLabel => 'Descripción';
+
+  @override
+  String get editTodoSaveButtonTooltip => 'Guardar cambios';
+
+  @override
+  String get statsAppBarTitle => 'Estadísticas';
+
+  @override
+  String get statsCompletedTodoCountLabel => 'Tareas completadas';
+
+  @override
+  String get statsActiveTodoCountLabel => 'Tareas activas';
+}
+
+### 4.2 Configurar el tema de la aplicación
+
+This provides theme definition for light and dark mode.
+
+En `lib/core/theme/theme.dart`:
+
+import 'package:flutter/material.dart';
+
+class FlutterTodosTheme {
+  static ThemeData get light {
+    return ThemeData(
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color.fromARGB(255, 117, 208, 247),
+      ),
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF13B9FF),
+      ),
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  static ThemeData get dark {
+    return ThemeData(
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color.fromARGB(255, 16, 46, 59),
+      ),
+      colorScheme: ColorScheme.fromSeed(
+        brightness: Brightness.dark,
+        seedColor: const Color(0xFF13B9FF),
+      ),
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+}
+
+### 4.3 La Trinidad del Poder: Eventos, Estados y Blocs
+
+Antes de escribir el código, es crucial tener un modelo mental sólido del patrón Bloc. Es una biblioteca de gestión de estado predecible que gira en torno a un bucle de comunicación simple y cerrado.
+
+Usemos nuestra analogía de los videojuegos:
+
+- **UI (El Jugador):** El jugador ve el mundo e interactúa con él presionando botones en su control.
+- **Eventos (Acciones del Jugador):** Cuando el jugador presiona el botón de "saltar", se envía un `Evento` al motor del juego. En nuestra aplicación, esto es el usuario tocando un botón, como `AddTodoButtonPressed`. Un evento es una clase simple que representa una intención.
+- **Bloc (El Motor del Juego):** El Bloc recibe el evento. Es el procesador central que contiene toda la lógica. Puede que necesite verificar las reglas del juego (por ejemplo, "¿está el jugador en el suelo?") o actualizar los datos del mundo (hablando con el `TodosRepository`). Basado en el evento y el estado actual, decide cuál debería ser el nuevo estado del mundo.
+- **Estados (El Estado del Mundo):** Después del procesamiento, el Bloc emite un nuevo `Estado`. Un estado es un objeto inmutable que representa una instantánea de la UI en un momento particular (por ejemplo, `TodosLoadSuccess` que contiene la lista de todos, o `TodosLoadInProgress`).
+- **UI (El Jugador Ve el Resultado):** La UI está constantemente escuchando nuevos estados del Bloc. Cuando recibe un nuevo estado, se reconstruye a sí misma para reflejar esa nueva realidad. El jugador ve a su personaje saltar.
+
+Este bucle cerrado—**UI -> Evento -> Bloc -> Estado -> UI**—es el corazón del patrón. Hace que el flujo de datos de tu aplicación sea predecible, comprobable y fácil de depurar.
+
+### 4.3 Construyendo Stats
+
+The stats feature displays statistics about the active and completed todos.
+
+### **StatsState**
+
+`StatsState` keeps track of summary information and the current `StatsStatus`.
+
+En lib/features/stats/bloc/stats_state.dart
+
+part of 'stats_bloc.dart';
+
+enum StatsStatus { initial, loading, success, failure }
+
+final class StatsState extends Equatable {
+  const StatsState({
+    this.status = StatsStatus.initial,
+    this.completedTodos = 0,
+    this.activeTodos = 0,
+  });
+
+  final StatsStatus status;
+  final int completedTodos;
+  final int activeTodos;
+
+  @override
+  List<Object> get props => [status, completedTodos, activeTodos];
+
+  StatsState copyWith({
+    StatsStatus? status,
+    int? completedTodos,
+    int? activeTodos,
+  }) {
+    return StatsState(
+      status: status ?? this.status,
+      completedTodos: completedTodos ?? this.completedTodos,
+      activeTodos: activeTodos ?? this.activeTodos,
+    );
+  }
+}
+
+### **StatsEvent**
+
+`StatsEvent` has only one event called `StatsSubscriptionRequested`:
+
+En lib/features/stats/bloc/stats_event.dart:
+
+part of 'stats_bloc.dart';
+
+sealed class StatsEvent extends Equatable {
+  const StatsEvent();
+
+  @override
+  List<Object> get props => [];
+}
+
+final class StatsSubscriptionRequested extends StatsEvent {
+  const StatsSubscriptionRequested();
+}
+
+### **StatsBloc**
+
+`StatsBloc` depends on the `TodosRepository` just like `TodosOverviewBloc`. It subscribes to the todos stream via `_todosRepository.getTodos`.
+
+En lib/features/stats/bloc/stats_bloc.dart:
+
+import 'package:bloc/bloc.dart';
+import 'package:equatable/equatable.dart';
+import 'package:todos_repository/todos_repository.dart';
+
+part 'stats_event.dart';
+part 'stats_state.dart';
+
+class StatsBloc extends Bloc<StatsEvent, StatsState> {
+  StatsBloc({
+    required TodosRepository todosRepository,
+  }) : _todosRepository = todosRepository,
+       super(const StatsState()) {
+    on<StatsSubscriptionRequested>(_onSubscriptionRequested);
+  }
+
+  final TodosRepository _todosRepository;
+
+  Future<void> _onSubscriptionRequested(
+    StatsSubscriptionRequested event,
+    Emitter<StatsState> emit,
+  ) async {
+    emit(state.copyWith(status: StatsStatus.loading));
+
+    await emit.forEach<List<Todo>>(
+      _todosRepository.getTodos(),
+      onData: (todos) => state.copyWith(
+        status: StatsStatus.success,
+        completedTodos: todos.where((todo) => todo.isCompleted).length,
+        activeTodos: todos.where((todo) => !todo.isCompleted).length,
+      ),
+      onError: (_, _) => state.copyWith(status: StatsStatus.failure),
+    );
+  }
+}
+
+### **Stats View**
+
+`stats_page.dart` contains the UI for the page that displays the todos statistics.
+
+En lib/features/stats/view/stats_page.dart:
+
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:javerage_todos/features/stats/bloc/stats_bloc.dart';
+import 'package:javerage_todos/l10n/l10n.dart';
+import 'package:todos_repository/todos_repository.dart';
+
+class StatsPage extends StatelessWidget {
+  const StatsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => StatsBloc(
+        todosRepository: context.read<TodosRepository>(),
+      )..add(const StatsSubscriptionRequested()),
+      child: const StatsView(),
+    );
+  }
+}
+
+class StatsView extends StatelessWidget {
+  const StatsView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final state = context.watch<StatsBloc>().state;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.statsAppBarTitle),
+      ),
+      body: Column(
+        children: [
+          ListTile(
+            key: const Key('statsView_completedTodos_listTile'),
+            leading: const Icon(Icons.check_rounded),
+            title: Text(l10n.statsCompletedTodoCountLabel),
+            trailing: Text(
+              '${state.completedTodos}',
+              style: textTheme.headlineSmall,
+            ),
+          ),
+          ListTile(
+            key: const Key('statsView_activeTodos_listTile'),
+            leading: const Icon(Icons.radio_button_unchecked_rounded),
+            title: Text(l10n.statsActiveTodoCountLabel),
+            trailing: Text(
+              '${state.activeTodos}',
+              style: textTheme.headlineSmall,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+### 4.4 Construyendo EditTodo
+
+The `EditTodo` feature allows users to edit an existing todo item and save the changes.
+
+### **EditTodoState**
+
+`EditTodoState` keeps track of the information needed when editing a todo.
+
+En lib/features/edit_todo/bloc/edit_todo_state.dart
+
+part of 'edit_todo_bloc.dart';
+
+enum EditTodoStatus { initial, loading, success, failure }
+
+extension EditTodoStatusX on EditTodoStatus {
+  bool get isLoadingOrSuccess => [
+    EditTodoStatus.loading,
+    EditTodoStatus.success,
+  ].contains(this);
+}
+
+final class EditTodoState extends Equatable {
+  const EditTodoState({
+    this.status = EditTodoStatus.initial,
+    this.initialTodo,
+    this.title = '',
+    this.description = '',
+  });
+
+  final EditTodoStatus status;
+  final Todo? initialTodo;
+  final String title;
+  final String description;
+
+  bool get isNewTodo => initialTodo == null;
+
+  EditTodoState copyWith({
+    EditTodoStatus? status,
+    Todo? initialTodo,
+    String? title,
+    String? description,
+  }) {
+    return EditTodoState(
+      status: status ?? this.status,
+      initialTodo: initialTodo ?? this.initialTodo,
+      title: title ?? this.title,
+      description: description ?? this.description,
+    );
+  }
+
+  @override
+  List<Object?> get props => [status, initialTodo, title, description];
+}
+​
+EditTodoEvent
+
+The different events the bloc will react to are:
+
+EditTodoTitleChanged
+EditTodoDescriptionChanged
+EditTodoSubmitted
+En lib/features/edit_todo/bloc/edit_todo_event.dart
+
+part of 'edit_todo_bloc.dart';
+
+sealed class EditTodoEvent extends Equatable {
+  const EditTodoEvent();
+
+  @override
+  List<Object> get props => [];
+}
+
+final class EditTodoTitleChanged extends EditTodoEvent {
+  const EditTodoTitleChanged(this.title);
+
+  final String title;
+
+  @override
+  List<Object> get props => [title];
+}
+
+final class EditTodoDescriptionChanged extends EditTodoEvent {
+  const EditTodoDescriptionChanged(this.description);
+
+  final String description;
+
+  @override
+  List<Object> get props => [description];
+}
+
+final class EditTodoSubmitted extends EditTodoEvent {
+  const EditTodoSubmitted();
+}
+
+### **EditTodoBloc**
+
+`EditTodoBloc` depends on the `TodosRepository`, just like `TodosOverviewBloc` and `StatsBloc`.
+
+En lib/features/edit_todo/bloc/edit_todo_bloc.dart:
+
+// ignore_for_file: avoid_catches_without_on_clauses
+
+import 'package:bloc/bloc.dart';
+import 'package:equatable/equatable.dart';
+import 'package:todos_repository/todos_repository.dart';
+
+part 'edit_todo_event.dart';
+part 'edit_todo_state.dart';
+
+class EditTodoBloc extends Bloc<EditTodoEvent, EditTodoState> {
+  EditTodoBloc({
+    required TodosRepository todosRepository,
+    required Todo? initialTodo,
+  }) : _todosRepository = todosRepository,
+       super(
+         EditTodoState(
+           initialTodo: initialTodo,
+           title: initialTodo?.title ?? '',
+           description: initialTodo?.description ?? '',
+         ),
+       ) {
+    on<EditTodoTitleChanged>(_onTitleChanged);
+    on<EditTodoDescriptionChanged>(_onDescriptionChanged);
+    on<EditTodoSubmitted>(_onSubmitted);
+  }
+
+  final TodosRepository _todosRepository;
+
+  void _onTitleChanged(
+    EditTodoTitleChanged event,
+    Emitter<EditTodoState> emit,
+  ) {
+    emit(state.copyWith(title: event.title));
+  }
+
+  void _onDescriptionChanged(
+    EditTodoDescriptionChanged event,
+    Emitter<EditTodoState> emit,
+  ) {
+    emit(state.copyWith(description: event.description));
+  }
+
+  Future<void> _onSubmitted(
+    EditTodoSubmitted event,
+    Emitter<EditTodoState> emit,
+  ) async {
+    emit(state.copyWith(status: EditTodoStatus.loading));
+    final todo = (state.initialTodo ?? Todo(title: '')).copyWith(
+      title: state.title,
+      description: state.description,
+    );
+
+    try {
+      await _todosRepository.saveTodo(todo);
+      emit(state.copyWith(status: EditTodoStatus.success));
+    } catch (e) {
+      emit(state.copyWith(status: EditTodoStatus.failure));
+    }
+  }
+}
+
+### **EditTodoPage**
+
+**En lib/features/edit_todo/view/edit_todo_page.dart**
+
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:javerage_todos/features/edit_todo/bloc/edit_todo_bloc.dart';
+import 'package:javerage_todos/l10n/l10n.dart';
+import 'package:todos_repository/todos_repository.dart';
+
+class EditTodoPage extends StatelessWidget {
+  const EditTodoPage({super.key});
+
+  static Route<void> route({Todo? initialTodo}) {
+    return MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (context) => BlocProvider(
+        create: (context) => EditTodoBloc(
+          todosRepository: context.read<TodosRepository>(),
+          initialTodo: initialTodo,
+        ),
+        child: const EditTodoPage(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<EditTodoBloc, EditTodoState>(
+      listenWhen: (previous, current) =>
+          previous.status != current.status &&
+          current.status == EditTodoStatus.success,
+      listener: (context, state) => Navigator.of(context).pop(),
+      child: const EditTodoView(),
+    );
+  }
+}
+
+class EditTodoView extends StatelessWidget {
+  const EditTodoView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final status = context.select((EditTodoBloc bloc) => bloc.state.status);
+    final isNewTodo = context.select(
+      (EditTodoBloc bloc) => bloc.state.isNewTodo,
+    );
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          isNewTodo
+              ? l10n.editTodoAddAppBarTitle
+              : l10n.editTodoEditAppBarTitle,
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        tooltip: l10n.editTodoSaveButtonTooltip,
+        shape: const ContinuousRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(32)),
+        ),
+        onPressed: status.isLoadingOrSuccess
+            ? null
+            : () => context.read<EditTodoBloc>().add(const EditTodoSubmitted()),
+        child: status.isLoadingOrSuccess
+            ? const CupertinoActivityIndicator()
+            : const Icon(Icons.check_rounded),
+      ),
+      body: const CupertinoScrollbar(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              children: [_TitleField(), _DescriptionField()],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TitleField extends StatelessWidget {
+  const _TitleField();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final state = context.watch<EditTodoBloc>().state;
+    final hintText = state.initialTodo?.title ?? '';
+
+    return TextFormField(
+      key: const Key('editTodoView_title_textFormField'),
+      initialValue: state.title,
+      decoration: InputDecoration(
+        enabled: !state.status.isLoadingOrSuccess,
+        labelText: l10n.editTodoTitleLabel,
+        hintText: hintText,
+      ),
+      maxLength: 50,
+      inputFormatters: [
+        LengthLimitingTextInputFormatter(50),
+        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9\s]')),
+      ],
+      onChanged: (value) {
+        context.read<EditTodoBloc>().add(EditTodoTitleChanged(value));
+      },
+    );
+  }
+}
+
+class _DescriptionField extends StatelessWidget {
+  const _DescriptionField();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    final state = context.watch<EditTodoBloc>().state;
+    final hintText = state.initialTodo?.description ?? '';
+
+    return TextFormField(
+      key: const Key('editTodoView_description_textFormField'),
+      initialValue: state.description,
+      decoration: InputDecoration(
+        enabled: !state.status.isLoadingOrSuccess,
+        labelText: l10n.editTodoDescriptionLabel,
+        hintText: hintText,
+      ),
+      maxLength: 300,
+      maxLines: 7,
+      inputFormatters: [
+        LengthLimitingTextInputFormatter(300),
+      ],
+      onChanged: (value) {
+        context.read<EditTodoBloc>().add(EditTodoDescriptionChanged(value));
+      },
+    );
+  }
+}
+
+### 4.5 Construyendo la Misión Principal: La Característica `TodosOverview`
+
+Apliquemos este patrón construyendo nuestra característica principal: la pantalla que muestra la lista de todos los todos. Construiremos sistemáticamente los eventos, el estado, el bloc y la UI para esta característica.
+
+### Models
+
+There is one model file that deals with the view filtering.
+
+`todos_view_filter.dart` is an enum that represents the three view filters and the methods to apply the filter.
+
+En `lib/features/todos_overview/models/todos_view_filter.dart`:
+
+import 'package:todos_repository/todos_repository.dart';
+
+enum TodosViewFilter { all, activeOnly, completedOnly }
+
+extension TodosViewFilterX on TodosViewFilter {
+  bool apply(Todo todo) {
+    switch (this) {
+      case TodosViewFilter.all:
+        return true;
+      case TodosViewFilter.activeOnly:
+        return !todo.isCompleted;
+      case TodosViewFilter.completedOnly:
+        return todo.isCompleted;
+    }
+  }
+
+  Iterable<Todo> applyAll(Iterable<Todo> todos) {
+    return todos.where(apply);
+  }
+}
+
+`models.dart` is the barrel file for exports.
+
+En `lib/features/todos_overview/models/models.dart`:
+
+export 'todos_view_filter.dart';
+
+### Eventos y Estados: Definiendo las Posibilidades
+
+Primero, definimos cada posible acción del usuario (Evento) y cada posible condición de la UI (Estado) para esta pantalla. Usar clases selladas es una característica moderna de Dart que asegura que manejemos todos los casos.
+
+En `lib/features/todos_overview/bloc/todos_overview_event.dart`:
+
+part of 'todos_overview_bloc.dart';
+
+sealed class TodosOverviewEvent extends Equatable {
+  const TodosOverviewEvent();
+
+  @override
+  List<Object> get props => [];
+}
+
+final class TodosOverviewSubscriptionRequested extends TodosOverviewEvent {
+  const TodosOverviewSubscriptionRequested();
+}
+
+final class TodosOverviewTodoCompletionToggled extends TodosOverviewEvent {
+  const TodosOverviewTodoCompletionToggled({
+    required this.todo,
+    required this.isCompleted,
+  });
+
+  final Todo todo;
+  final bool isCompleted;
+
+  @override
+  List<Object> get props => [todo, isCompleted];
+}
+
+final class TodosOverviewTodoDeleted extends TodosOverviewEvent {
+  const TodosOverviewTodoDeleted(this.todo);
+
+  final Todo todo;
+
+  @override
+  List<Object> get props => [todo];
+}
+
+final class TodosOverviewUndoDeletionRequested extends TodosOverviewEvent {
+  const TodosOverviewUndoDeletionRequested();
+}
+
+class TodosOverviewFilterChanged extends TodosOverviewEvent {
+  const TodosOverviewFilterChanged(this.filter);
+
+  final TodosViewFilter filter;
+
+  @override
+  List<Object> get props => [filter];
+}
+
+class TodosOverviewToggleAllRequested extends TodosOverviewEvent {
+  const TodosOverviewToggleAllRequested();
+}
+
+class TodosOverviewClearCompletedRequested extends TodosOverviewEvent {
+  const TodosOverviewClearCompletedRequested();
+}
+
+- `TodosOverviewSubscriptionRequested`: This is the startup event. In response, the bloc subscribes to the stream of todos from the `TodosRepository`.
+- `TodosOverviewTodoDeleted`: This deletes a Todo.
+- `TodosOverviewTodoCompletionToggled`: This toggles a todo’s completed status.
+- `TodosOverviewToggleAllRequested`: This toggles completion for all todos.
+- `TodosOverviewClearCompletedRequested`: This deletes all completed todos.
+- `TodosOverviewUndoDeletionRequested`: This undoes a todo deletion, e.g. an accidental deletion.
+- `TodosOverviewFilterChanged`: This takes a `TodosViewFilter` as an argument and changes the view by applying a filter.
+
+En `lib/todos_overview/bloc/todos_overview_state.dart`:
+
+part of 'todos_overview_bloc.dart';
+
+enum TodosOverviewStatus { initial, loading, success, failure }
+
+final class TodosOverviewState extends Equatable {
+  const TodosOverviewState({
+    this.status = TodosOverviewStatus.initial,
+    this.todos = const [],
+    this.filter = TodosViewFilter.all,
+    this.lastDeletedTodo,
+  });
+
+  final TodosOverviewStatus status;
+  final List<Todo> todos;
+  final TodosViewFilter filter;
+  final Todo? lastDeletedTodo;
+
+  Iterable<Todo> get filteredTodos => filter.applyAll(todos);
+
+  TodosOverviewState copyWith({
+    TodosOverviewStatus Function()? status,
+    List<Todo> Function()? todos,
+    TodosViewFilter Function()? filter,
+    Todo? Function()? lastDeletedTodo,
+  }) {
+    return TodosOverviewState(
+      status: status != null ? status() : this.status,
+      todos: todos != null ? todos() : this.todos,
+      filter: filter != null ? filter() : this.filter,
+      lastDeletedTodo: lastDeletedTodo != null
+          ? lastDeletedTodo()
+          : this.lastDeletedTodo,
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+    status,
+    todos,
+    filter,
+    lastDeletedTodo,
+  ];
+}
+
+### El Bloc: El Núcleo Lógico
+
+Ahora creamos el `TodosOverviewBloc`, el cerebro de esta característica. Recibirá `TodosOverviewEvent`s y, en respuesta, interactuará con el `TodosRepository` y emitirá nuevos `TodosOverviewState`s.
+
+En `lib/todos_overview/bloc/todos_overview_bloc.dart`:
+
+import 'package:bloc/bloc.dart';
+import 'package:equatable/equatable.dart';
+import 'package:javerage_todos/features/todos_overview/models/models.dart';
+import 'package:todos_repository/todos_repository.dart';
+
+part 'todos_overview_event.dart';
+part 'todos_overview_state.dart';
+
+class TodosOverviewBloc extends Bloc<TodosOverviewEvent, TodosOverviewState> {
+  TodosOverviewBloc({
+    required TodosRepository todosRepository,
+  }) : _todosRepository = todosRepository,
+       super(const TodosOverviewState()) {
+    on<TodosOverviewSubscriptionRequested>(_onSubscriptionRequested);
+    on<TodosOverviewTodoCompletionToggled>(_onTodoCompletionToggled);
+    on<TodosOverviewTodoDeleted>(_onTodoDeleted);
+    on<TodosOverviewUndoDeletionRequested>(_onUndoDeletionRequested);
+    on<TodosOverviewFilterChanged>(_onFilterChanged);
+    on<TodosOverviewToggleAllRequested>(_onToggleAllRequested);
+    on<TodosOverviewClearCompletedRequested>(_onClearCompletedRequested);
+  }
+
+  final TodosRepository _todosRepository;
+
+  Future<void> _onSubscriptionRequested(
+    TodosOverviewSubscriptionRequested event,
+    Emitter<TodosOverviewState> emit,
+  ) async {
+    emit(state.copyWith(status: () => TodosOverviewStatus.loading));
+
+    await emit.forEach<List<Todo>>(
+      _todosRepository.getTodos(),
+      onData: (todos) => state.copyWith(
+        status: () => TodosOverviewStatus.success,
+        todos: () => todos,
+      ),
+      onError: (_, _) => state.copyWith(
+        status: () => TodosOverviewStatus.failure,
+      ),
+    );
+  }
+
+  Future<void> _onTodoCompletionToggled(
+    TodosOverviewTodoCompletionToggled event,
+    Emitter<TodosOverviewState> emit,
+  ) async {
+    final newTodo = event.todo.copyWith(isCompleted: event.isCompleted);
+    await _todosRepository.saveTodo(newTodo);
+  }
+
+  Future<void> _onTodoDeleted(
+    TodosOverviewTodoDeleted event,
+    Emitter<TodosOverviewState> emit,
+  ) async {
+    emit(state.copyWith(lastDeletedTodo: () => event.todo));
+    await _todosRepository.deleteTodo(event.todo.id);
+  }
+
+  Future<void> _onUndoDeletionRequested(
+    TodosOverviewUndoDeletionRequested event,
+    Emitter<TodosOverviewState> emit,
+  ) async {
+    assert(
+      state.lastDeletedTodo != null,
+      'Last deleted todo can not be null.',
+    );
+
+    final todo = state.lastDeletedTodo!;
+    emit(state.copyWith(lastDeletedTodo: () => null));
+    await _todosRepository.saveTodo(todo);
+  }
+
+  void _onFilterChanged(
+    TodosOverviewFilterChanged event,
+    Emitter<TodosOverviewState> emit,
+  ) {
+    emit(state.copyWith(filter: () => event.filter));
+  }
+
+  Future<void> _onToggleAllRequested(
+    TodosOverviewToggleAllRequested event,
+    Emitter<TodosOverviewState> emit,
+  ) async {
+    final areAllCompleted = state.todos.every((todo) => todo.isCompleted);
+    await _todosRepository.completeAll(isCompleted: !areAllCompleted);
+  }
+
+  Future<void> _onClearCompletedRequested(
+    TodosOverviewClearCompletedRequested event,
+    Emitter<TodosOverviewState> emit,
+  ) async {
+    await _todosRepository.clearCompleted();
+  }
+}
+
+El manejador _onSubscriptionRequested es particularmente importante. La línea await emit.forEach(...) es una característica poderosa de la biblioteca Bloc. Suscribe el Bloc al Stream<List<Todo>> que proviene de nuestro repositorio. Cada vez que el repositorio proporciona una nueva lista de todos (porque se agregó, eliminó o cambió uno), este callback onData se activará, y el Bloc emitirá automáticamente un nuevo estado de success con la lista actualizada. Así es como nuestra UI se mantiene mágicamente sincronizada con nuestros datos.
+
+
+

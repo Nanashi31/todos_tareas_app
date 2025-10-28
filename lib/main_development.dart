@@ -1,6 +1,14 @@
-import 'package:javerage_todos/app/app.dart';
-import 'package:javerage_todos/bootstrap.dart';
+import 'package:flutter/widgets.dart';
+import 'package:javerage_todos/core/bootstrap.dart';
+import 'package:local_storage_todos_api/local_storage_todos_api.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
-  await bootstrap(() => const App());
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final todosApi = LocalStorageTodosApi(
+    plugin: await SharedPreferences.getInstance(),
+  );
+
+  bootstrap(todosApi: todosApi);
 }

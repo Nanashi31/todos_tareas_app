@@ -9,17 +9,31 @@ environment:
 
 dependencies:
   bloc: ^9.0.1
+  equatable: ^2.0.7
   flutter:
     sdk: flutter
   flutter_bloc: ^9.1.1
-  flutter_launcher_icons: ^0.14.4
   flutter_localizations:
     sdk: flutter
-  flutter_native_splash: ^2.4.7
   intl: ^0.20.2
+  json_annotation: ^4.9.0
+  json_serializable: ^6.11.1
+  # include the local_storage_todos_api package
+  local_storage_todos_api:
+    path: packages/local_storage_todos_api
+  meta: ^1.16.0
+  # include the todos_api package
+  shared_preferences: ^2.5.3
+  todos_api:
+    path: packages/todos_api
+  # include the todos_repository package
+  todos_repository:
+    path: packages/todos_repository
+  uuid: ^4.5.1
 
 dev_dependencies:
   bloc_test: ^10.0.0
+  build_runner: 2.7.1
   flutter_test:
     sdk: flutter
   mocktail: ^1.0.4

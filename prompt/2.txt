@@ -1,0 +1,405 @@
+Parte 3: Forjando el Motor – Las Capas de Datos y Dominio
+Comenzamos nuestro viaje de codificación desde adentro hacia afuera, empezando por las capas más fundamentales: Dominio y Datos. Estas capas forman el motor central de nuestra aplicación, definiendo las reglas y proporcionando la potencia bruta, completamente independientes de cualquier interfaz de usuario.
+Configuración de Dependencias
+En el proyecto todos_api, agreguemos los paquetes que necesitaremos. Ejecuta los siguientes comandos en tu terminal:
+flutter pub add equatable json_annotation meta uuid
+
+flutter pub add dev:build_runner json_serializable
+
+### 3.1 Creando el Objeto Principal: El Modelo de Datos `Todo`
+
+A continuación, todavía dentro del paquete `todos_api`, definimos nuestro modelo de datos principal: el `Todo` en sí. Esta clase es un objeto simple de Dart que representa una única tarea.
+
+Crea el archivo `packages/todos_api/lib/src/models/todo.dart`:
+
+import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
+import 'package:todos_api/todos_api.dart';
+import 'package:uuid/uuid.dart';
+
+part 'todo.g.dart';
+
+/// {@template todo_item}
+/// A single `todo` item.
+///
+/// Contains a [title], [description] and [id], in addition to a [isCompleted]
+/// flag.
+///
+/// If an [id] is provided, it cannot be empty. If no [id] is provided, one
+/// will be generated.
+///
+/// [Todo]s are immutable and can be copied using [copyWith], in addition to
+/// being serialized and deserialized using [toJson] and [fromJson]
+/// respectively.
+/// {@endtemplate}
+@immutable
+@JsonSerializable()
+class Todo extends Equatable {
+  /// {@macro todo_item}
+  Todo({
+    required this.title,
+    String? id,
+    this.description = '',
+    this.isCompleted = false,
+  }) : assert(
+         id == null || id.isNotEmpty,
+         'id must either be null or not empty',
+       ),
+       id = id ?? const Uuid().v4();
+
+  /// The unique identifier of the `todo`.
+  ///
+  /// Cannot be empty.
+  final String id;
+
+  /// The title of the `todo`.
+  ///
+  /// Note that the title may be empty.
+  final String title;
+
+  /// The description of the `todo`.
+  ///
+  /// Defaults to an empty string.
+  final String description;
+
+  /// Whether the `todo` is completed.
+  ///
+  /// Defaults to `false`.
+  final bool isCompleted;
+
+  /// Returns a copy of this `todo` with the given values updated.
+  ///
+  /// {@macro todo_item}
+  Todo copyWith({
+    String? id,
+    String? title,
+    String? description,
+    bool? isCompleted,
+  }) {
+    return Todo(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      isCompleted: isCompleted ?? this.isCompleted,
+    );
+  }
+
+  /// Deserializes the given [JsonMap] into a [Todo].
+  static Todo fromJson(JsonMap json) => _$TodoFromJson(json);
+
+  /// Converts this [Todo] into a [JsonMap].
+  JsonMap toJson() => _$TodoToJson(this);
+
+  @override
+  List<Object> get props => [id, title, description, isCompleted];
+}
+
+Analicemos los componentes clave aquí :
+
+- `extends Equatable`: Esto proviene del paquete `equatable`. Nos permite comparar dos objetos `Todo` por igualdad basándonos en sus propiedades (`id`, `title`, etc.) en lugar de su ubicación en memoria. Esto es crucial para Bloc, ya que ayuda a evitar reconstrucciones innecesarias de la UI cuando los datos no han cambiado realmente.
+- `@JsonSerializable()`: Esta anotación, junto con `part 'todo.g.dart';`, es parte del paquete `json_serializable`. Generará automáticamente el código necesario para convertir nuestro objeto `Todo` a y desde JSON, que es como lo almacenaremos.
+- `copyWith`: Este método es una piedra angular de la gestión de estado inmutable. En lugar de cambiar un objeto `Todo` directamente, creamos una nueva copia con los valores actualizados. Esto hace que los cambios de estado sean predecibles y más fáciles de rastrear.
+
+3.2 Creamos el archivo jsonmap
+json_map.dart provides a typedef for code checking and linting.
+// in packages/todos_api/lib/src/models/json_map.dart
+
+/// The type definition for a JSON-serializable [Map].
+typedef JsonMap = Map<String, dynamic>;
+
+### 3.3 Definiendo las Reglas: El Contrato Abstracto `TodosApi`
+
+Primero, definiremos un "contrato" en la capa de Dominio. Esto no es código que *hace* algo por sí mismo; es un conjunto de planos. La clase abstracta `TodosApi` especifica el conjunto exacto de habilidades que cualquier fuente de datos *debe* tener para ser compatible con nuestra aplicación.
+
+En el archivo `packages/todos_api/lib/src/todos_api.dart`, define el contrato:
+
+import 'package:todos_api/src/models/todo.dart';
+
+/// {@template todos_api}
+/// The interface for an API that provides access to a list of todos.
+/// {@endtemplate}
+abstract class TodosApi {
+  /// {@macro todos_api}
+  const TodosApi();
+
+  /// Provides a [Stream] of all todos.
+  Stream<List<Todo>> getTodos();
+
+  /// Saves a [todo].
+  ///
+  /// If a [todo] with the same id already exists, it will be replaced.
+  Future<void> saveTodo(Todo todo);
+
+  /// Deletes the `todo` with the given id.
+  ///
+  /// If no `todo` with the given id exists, a [TodoNotFoundException] error is
+  /// thrown.
+  Future<void> deleteTodo(String id);
+
+  /// Deletes all completed todos.
+  ///
+  /// Returns the number of deleted todos.
+  Future<int> clearCompleted();
+
+  /// Sets the `isCompleted` state of all todos to the given value.
+  ///
+  /// Returns the number of updated todos.
+  Future<int> completeAll({required bool isCompleted});
+
+  /// Closes the client and frees up any resources.
+  Future<void> close();
+}
+
+/// Error thrown when a [Todo] with a given id is not found.
+class TodoNotFoundException implements Exception {}
+
+Esta abstracción es increíblemente poderosa. Por ahora, construiremos una implementación que guarda datos en el almacenamiento local del dispositivo. Pero más tarde, podríamos crear una `FirebaseTodosApi` que guarde en la nube. Gracias a este contrato, podríamos cambiar la fuente de datos con cambios mínimos en el resto de la aplicación.
+
+---
+
+### 3.4 Crear los archivos de barril
+
+Our `Todo` model and the `TodosApi` are exported via barrel files. Notice how we don’t import the model directly, but we import it in `lib/src/todos_api.dart` with a reference to the package barrel file: `import 'package:todos_api/todos_api.dart';`. Update the barrel files to resolve any remaining import errors:
+
+// in packages/todos_api/lib/src/models/models.dart
+
+export 'json_map.dart';
+export 'todo.dart';
+
+3.5 Update Exports
+
+/// The interface and models for an API providing access to todos.
+library;
+
+export 'src/models/models.dart';
+export 'src/todos_api.dart';
+
+3.6 Crear los archivos con el comando dart run
+En la terminal del proyecto todos_api ejecuta el siguiente comando:
+flutter run build_runner build --delete-conflicting-outputs
+
+### 3.7 La Bóveda Local: Implementando `LocalStorageTodosApi`
+
+Ahora nos movemos a la Capa de Datos y creamos una implementación concreta de nuestro contrato `TodosApi`. Esta clase será el "herrero local" que sigue los planos para gestionar los elementos `Todo` utilizando el almacenamiento local del dispositivo a través del paquete `shared_preferences`.
+
+### Configuración de Dependencias
+
+En el proyecto `local_storage_todos_api`, agreguemos los paquetes que necesitaremos. Ejecuta los siguientes comandos en tu terminal:
+
+flutter pub add meta rxdart shared_preferences
+
+Actualiza las referencias para incluir las referencias a los proyectos locales en el archivo .yaml
+
+# ... other settings
+
+dependencies:
+  flutter:
+    sdk: flutter
+  meta: ^1.16.0
+  rxdart: ^0.28.0
+  shared_preferences: ^2.5.3
+  # include the todos_api package
+  todos_api:
+    path: ../todos_api
+
+# ... other settings
+
+En packages/local_storage_todos_api/lib/src/local_storage_todos_api.dart, agrega la implementación:
+
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:meta/meta.dart';
+import 'package:rxdart/subjects.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:todos_api/todos_api.dart';
+
+/// {@template local_storage_todos_api}
+/// A Flutter implementation of the [TodosApi] that uses local storage.
+/// {@endtemplate}
+class LocalStorageTodosApi extends TodosApi {
+  /// {@macro local_storage_todos_api}
+  LocalStorageTodosApi({
+    required SharedPreferences plugin,
+  }) : _plugin = plugin {
+    _init();
+  }
+
+  final SharedPreferences _plugin;
+
+  late final _todoStreamController = BehaviorSubject<List<Todo>>.seeded(
+    const [],
+  );
+
+  /// The key used for storing the todos locally.
+  ///
+  /// This is only exposed for testing and shouldn't be used by consumers of
+  /// this library.
+  @visibleForTesting
+  static const kTodosCollectionKey = '__todos_collection_key__';
+
+  String? _getValue(String key) => _plugin.getString(key);
+  Future<void> _setValue(String key, String value) =>
+      _plugin.setString(key, value);
+
+  void _init() {
+    final todosJson = _getValue(kTodosCollectionKey);
+    if (todosJson != null) {
+      final todos =
+          List<Map<dynamic, dynamic>>.from(
+                json.decode(todosJson) as List,
+              )
+              .map(
+                (jsonMap) => Todo.fromJson(Map<String, dynamic>.from(jsonMap)),
+              )
+              .toList();
+      _todoStreamController.add(todos);
+    } else {
+      _todoStreamController.add(const []);
+    }
+  }
+
+  @override
+  Stream<List<Todo>> getTodos() => _todoStreamController.asBroadcastStream();
+
+  @override
+  Future<void> saveTodo(Todo todo) {
+    final todos = [..._todoStreamController.value];
+    final todoIndex = todos.indexWhere((t) => t.id == todo.id);
+    if (todoIndex >= 0) {
+      todos[todoIndex] = todo;
+    } else {
+      todos.add(todo);
+    }
+
+    _todoStreamController.add(todos);
+    return _setValue(kTodosCollectionKey, json.encode(todos));
+  }
+
+  @override
+  Future<void> deleteTodo(String id) async {
+    final todos = [..._todoStreamController.value];
+    final todoIndex = todos.indexWhere((t) => t.id == id);
+    if (todoIndex == -1) {
+      throw TodoNotFoundException();
+    } else {
+      todos.removeAt(todoIndex);
+      _todoStreamController.add(todos);
+      return _setValue(kTodosCollectionKey, json.encode(todos));
+    }
+  }
+
+  @override
+  Future<int> clearCompleted() async {
+    final todos = [..._todoStreamController.value];
+    final initialLength = todos.length;
+
+    todos.removeWhere((t) => t.isCompleted);
+    final completedTodosAmount = initialLength - todos.length;
+
+    _todoStreamController.add(todos);
+    await _setValue(kTodosCollectionKey, json.encode(todos));
+    return completedTodosAmount;
+  }
+
+  @override
+  Future<int> completeAll({required bool isCompleted}) async {
+    final todos = [..._todoStreamController.value];
+    final changedTodosAmount = todos
+        .where((t) => t.isCompleted != isCompleted)
+        .length;
+    final newTodos = [
+      for (final todo in todos) todo.copyWith(isCompleted: isCompleted),
+    ];
+    _todoStreamController.add(newTodos);
+    await _setValue(kTodosCollectionKey, json.encode(newTodos));
+    return changedTodosAmount;
+  }
+
+  @override
+  Future<void> close() {
+    return _todoStreamController.close();
+  }
+}
+
+La pieza más importante de este archivo es el `_todoStreamController`. Este es un tipo especial de controlador de stream (`BehaviorSubject`) que hace dos cosas: recuerda la última lista de todos que se emitió y transmite cualquier cambio a esa lista a todos los oyentes. Este es el mecanismo que hará que nuestra aplicación sea reactiva, actualizando automáticamente la UI cada vez que los datos cambien.
+
+---
+
+### 3.8 El Centro de Mando: El `TodosRepository`
+
+Finalmente, creamos el `TodosRepository`. Esta clase se encuentra en la Capa de Dominio y actúa como el centro de mando o "Dador de Misiones" para nuestra aplicación. Se interpone entre las características (el jugador) y las fuentes de datos (los recursos del mundo). Cuando una característica necesita datos, se lo pide al repositorio; no va a cavar en las minas por sí misma.
+
+### Configuración de Dependencias
+
+Actualiza las referencias para incluir las referencias a los proyectos locales en el archivo .yaml
+
+# ... other settings
+
+dependencies:
+  # include the todos_api package
+  todos_api:
+    path: ../todos_api
+
+# ... other settings
+
+En `packages/local_storage_todos_api/lib/src/local_storage_todos_api.dart`, agrega la implementación:
+
+Actualiza las referencias para incluir las referencias a los proyectos locales en el archivo .yaml
+
+En `packages/todos_repository/lib/src/todos_repository.dart`, crea el repositorio:
+
+import 'package:todos_api/todos_api.dart';
+
+/// {@template todos_repository}
+/// A repository that handles `todo` related requests.
+/// {@endtemplate}
+class TodosRepository {
+  /// {@macro todos_repository}
+  const TodosRepository({
+    required TodosApi todosApi,
+  }) : _todosApi = todosApi;
+
+  final TodosApi _todosApi;
+
+  /// Provides a [Stream] of all todos.
+  Stream<List<Todo>> getTodos() => _todosApi.getTodos();
+
+  /// Saves a [todo].
+  ///
+  /// If a [todo] with the same id already exists, it will be replaced.
+  Future<void> saveTodo(Todo todo) => _todosApi.saveTodo(todo);
+
+  /// Deletes the `todo` with the given id.
+  ///
+  /// If no `todo` with the given id exists, a [TodoNotFoundException] error is
+  /// thrown.
+  Future<void> deleteTodo(String id) => _todosApi.deleteTodo(id);
+
+  /// Deletes all completed todos.
+  ///
+  /// Returns the number of deleted todos.
+  Future<int> clearCompleted() => _todosApi.clearCompleted();
+
+  /// Sets the `isCompleted` state of all todos to the given value.
+  ///
+  /// Returns the number of updated todos.
+  Future<int> completeAll({required bool isCompleted}) =>
+      _todosApi.completeAll(isCompleted: isCompleted);
+
+  /// Disposes any resources managed by the repository.
+  void dispose() => _todosApi.close();
+}
+
+Observa lo simple que es esta clase. No contiene ninguna lógica compleja. Su trabajo principal es depender del contrato abstracto `TodosApi` y exponer sus métodos al resto de la aplicación. Esto desacopla nuestras características de la implementación concreta de datos. Nuestros Blocs solo hablarán con `TodosRepository`, haciéndolos completamente ajenos a si los datos provienen de `LocalStorageTodosApi` o de alguna otra fuente.1 Esto completa nuestro motor central.
+
+### **Library Exports**
+
+In addition to exporting the `TodosRepository` class, we also export the `Todo` model from the `todos_api` package. This step prevents tight coupling between the application and the data providers.
+
+/// A repository that handles `todo` related requests.
+library;
+
+export 'package:todos_api/todos_api.dart' show Todo;
+export 'src/todos_repository.dart';
